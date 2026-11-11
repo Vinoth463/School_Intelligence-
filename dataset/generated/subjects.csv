@@ -1,0 +1,7 @@
+id,institution_id,name,code,description,created_at
+1,1,Mathematics,MAT,Mathematics subject,2026-11-11T00:00:00+00:00
+2,1,Science,SCI,General science subject,2026-11-11T00:00:00+00:00
+3,1,English,ENG,English language subject,2026-11-11T00:00:00+00:00
+4,1,Tamil,TAM,Tamil language subject,2026-11-11T00:00:00+00:00
+5,1,Social Science,SOC,Social science subject,2026-11-11T00:00:00+00:00
+6,1,Computer Science,CS,Computer science subject,2026-11-11T00:00:00+00:00

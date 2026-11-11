@@ -1,0 +1,75 @@
+
+# ==============================
+# Python
+# ==============================
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg-info/
+build/
+dist/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# ==============================
+# FastAPI / Testing
+# ==============================
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# ==============================
+# PostgreSQL / Database
+# ==============================
+*.dump
+*.backup
+*.sqlite3
+*.db
+
+# ==============================
+# Machine Learning
+# ==============================
+*.joblib
+*.pkl
+*.h5
+*.pt
+*.pth
+*.onnx
+
+# Keep model evaluation reports and documentation
+!ml_artifacts/evaluation/
+
+# ==============================
+# React / Node.js
+# ==============================
+node_modules/
+dist/
+build/
+coverage/
+*.log
+npm-debug.log*
+
+# ==============================
+# IDE
+# ==============================
+.vscode/
+.idea/
+*.swp
+
+# ==============================
+# Operating System
+# ==============================
+.DS_Store
+Thumbs.db
+desktop.ini
