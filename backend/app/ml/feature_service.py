@@ -1,5 +1,5 @@
 
-from datetime import timedelta
+from datetime import date, timedelta
 from statistics import mean
 
 from sqlalchemy import select
@@ -10,18 +10,20 @@ from app.models.marks import Mark
 from app.models.attendance import Attendance
 from app.models.examination import Examination
 from app.models.classroom import Classroom
+from app.models.subject import Subject
+from app.models.academic_period import AcademicPeriod
 
 
 def _attendance_percentage(records):
     """
     Calculate attendance percentage.
 
-    Present = 1
-    Absent = 0
+    Return None when no attendance records exist.
+    The trained model's numerical imputer handles missing values.
     """
 
     if not records:
-        return 0.0
+        return None
 
     present_count = sum(
         1 for record in records
@@ -39,14 +41,14 @@ def build_prediction_features(
     target_examination_id: int,
 ) -> dict:
     """
-    Build the exact historical feature structure used
-    during ML model training.
+    Build historical features using the same definitions
+    as the original ML training pipeline.
 
-    Only information available up to the previous
-    examination is used.
-
-    The target examination's marks are never included.
+    Only completed historical marks and attendance records
+    are used. Future information is excluded.
     """
+
+    today = date.today()
 
     # --------------------------------------------------
     # 1. VALIDATE STUDENT
@@ -65,23 +67,82 @@ def build_prediction_features(
         )
 
     # --------------------------------------------------
-    # 2. VALIDATE TARGET EXAMINATION
+    # 2. VALIDATE SUBJECT
     # --------------------------------------------------
 
-    target_exam = db.scalar(
-        select(Examination).where(
-            Examination.id == target_examination_id,
-            Examination.institution_id == institution_id,
+    subject = db.scalar(
+        select(Subject).where(
+            Subject.id == subject_id,
+            Subject.institution_id == institution_id,
         )
     )
 
-    if target_exam is None:
+    if subject is None:
+        raise ValueError(
+            "Subject not found in this institution."
+        )
+
+    # --------------------------------------------------
+    # 3. VALIDATE TARGET EXAMINATION AND PERIOD
+    # --------------------------------------------------
+
+    target_result = db.execute(
+        select(Examination, AcademicPeriod)
+        .join(
+            AcademicPeriod,
+            Examination.academic_period_id == AcademicPeriod.id,
+        )
+        .where(
+            Examination.id == target_examination_id,
+            Examination.institution_id == institution_id,
+            AcademicPeriod.institution_id == institution_id,
+        )
+    ).first()
+
+    if target_result is None:
         raise ValueError(
             "Target examination not found in this institution."
         )
 
-    # Do not generate predictions if the target marks
-    # have already been recorded.
+    target_exam, target_period = target_result
+
+    if target_exam.exam_date <= today:
+        raise ValueError(
+            "Target examination must be in the future."
+        )
+
+    if not (
+        target_period.start_date
+        <= target_exam.exam_date
+        <= target_period.end_date
+    ):
+        raise ValueError(
+            "Target examination date is outside its academic period."
+        )
+
+    # --------------------------------------------------
+    # 4. VALIDATE STUDENT'S TARGET CLASS
+    # --------------------------------------------------
+
+    target_class = db.scalar(
+        select(Classroom).where(
+            Classroom.id == student.class_id,
+            Classroom.institution_id == institution_id,
+            Classroom.academic_period_id
+            == target_exam.academic_period_id,
+        )
+    )
+
+    if target_class is None:
+        raise ValueError(
+            "Student's current class does not belong to "
+            "the target examination's academic period."
+        )
+
+    # --------------------------------------------------
+    # 5. PREVENT PREDICTION WHEN TARGET MARKS EXIST
+    # --------------------------------------------------
+
     existing_target_mark = db.scalar(
         select(Mark.id).where(
             Mark.student_id == student_id,
@@ -96,7 +157,7 @@ def build_prediction_features(
         )
 
     # --------------------------------------------------
-    # 3. FETCH HISTORICAL EXAMINATION MARKS
+    # 6. FETCH VALID HISTORICAL EXAMINATION MARKS
     # --------------------------------------------------
 
     historical_rows = db.execute(
@@ -109,12 +170,26 @@ def build_prediction_features(
             Classroom,
             Mark.class_id == Classroom.id,
         )
+        .join(
+            AcademicPeriod,
+            Examination.academic_period_id == AcademicPeriod.id,
+        )
         .where(
             Mark.student_id == student_id,
             Mark.subject_id == subject_id,
+
             Examination.institution_id == institution_id,
             Classroom.institution_id == institution_id,
+            AcademicPeriod.institution_id == institution_id,
+
+            Examination.academic_period_id
+            == Classroom.academic_period_id,
+
             Examination.exam_date < target_exam.exam_date,
+            Examination.exam_date <= today,
+
+            Examination.exam_date >= AcademicPeriod.start_date,
+            Examination.exam_date <= AcademicPeriod.end_date,
         )
         .order_by(
             Examination.exam_date.asc(),
@@ -125,60 +200,88 @@ def build_prediction_features(
 
     if not historical_rows:
         raise ValueError(
-            "Insufficient historical examination marks "
-            "to generate a prediction."
+            "Insufficient historical examination marks."
         )
 
     # --------------------------------------------------
-    # 4. CALCULATE HISTORICAL MARK FEATURES
+    # 7. CALCULATE HISTORICAL MARK FEATURES
     # --------------------------------------------------
 
     previous_scores = []
 
     for mark, examination, classroom in historical_rows:
 
+        max_marks = float(mark.max_marks)
+
+        if max_marks <= 0:
+            raise ValueError(
+                "Historical examination contains invalid maximum marks."
+            )
+
         percentage = (
-            float(mark.obtained_marks)
-            / float(mark.max_marks)
+            float(mark.obtained_marks) / max_marks
         ) * 100.0
 
         previous_scores.append(percentage)
 
-    # Most recent examination percentage.
     previous_exam_percentage = previous_scores[-1]
 
-    # Average of all examinations available so far.
-    historical_average_percentage = mean(previous_scores)
+    historical_average_percentage = mean(
+        previous_scores
+    )
 
-    # Difference between latest and previous scores.
-    # No trend is available when only one exam exists.
-    if len(previous_scores) >= 2:
-        marks_trend = (
-            previous_scores[-1] - previous_scores[-2]
-        )
-    else:
-        marks_trend = None
+    marks_trend = (
+        previous_scores[-1] - previous_scores[-2]
+        if len(previous_scores) >= 2
+        else None
+    )
 
     previous_exam_count = len(previous_scores)
 
-    # Use the historical class associated with
-    # the student's latest examination mark.
     latest_mark, current_exam, current_class = historical_rows[-1]
 
     class_grade = current_class.grade
 
-    # --------------------------------------------------
-    # 5. FETCH ATTENDANCE UP TO CURRENT EXAMINATION
-    # --------------------------------------------------
-
+    # The latest completed historical examination determines
+    # the cutoff date for attendance feature calculation.
     cutoff_date = current_exam.exam_date
+
+    # --------------------------------------------------
+    # 8. FETCH HISTORICAL ATTENDANCE
+    # --------------------------------------------------
 
     attendance_records = db.scalars(
         select(Attendance)
+        .join(
+            Student,
+            Attendance.student_id == Student.id,
+        )
+        .join(
+            Subject,
+            Attendance.subject_id == Subject.id,
+        )
+        .join(
+            Classroom,
+            Attendance.class_id == Classroom.id,
+        )
+        .join(
+            AcademicPeriod,
+            Classroom.academic_period_id == AcademicPeriod.id,
+        )
         .where(
             Attendance.student_id == student_id,
             Attendance.subject_id == subject_id,
+
+            Student.institution_id == institution_id,
+            Subject.institution_id == institution_id,
+            Classroom.institution_id == institution_id,
+            AcademicPeriod.institution_id == institution_id,
+
+            Attendance.session_date >= student.admission_date,
             Attendance.session_date <= cutoff_date,
+
+            Attendance.session_date >= AcademicPeriod.start_date,
+            Attendance.session_date <= AcademicPeriod.end_date,
         )
         .order_by(
             Attendance.session_date.asc(),
@@ -186,19 +289,14 @@ def build_prediction_features(
         )
     ).all()
 
-    if not attendance_records:
-        raise ValueError(
-            "Insufficient historical attendance records "
-            "to generate a reliable prediction."
-        )
-
-    # Overall attendance percentage.
+    # Missing attendance is allowed.
+    # The trained numerical imputer handles missing values.
     attendance_percentage = _attendance_percentage(
         attendance_records
     )
 
     # --------------------------------------------------
-    # 6. CALCULATE RECENT AND PREVIOUS 60-DAY ATTENDANCE
+    # 9. CALCULATE RECENT AND PREVIOUS 60-DAY ATTENDANCE
     # --------------------------------------------------
 
     recent_start = cutoff_date - timedelta(days=60)
@@ -225,8 +323,12 @@ def build_prediction_features(
     )
 
     attendance_trend = (
-        attendance_recent_60d
-        - attendance_previous_60d
+        attendance_recent_60d - attendance_previous_60d
+        if (
+            attendance_recent_60d is not None
+            and attendance_previous_60d is not None
+        )
+        else None
     )
 
     attendance_sessions_to_date = len(
@@ -234,10 +336,10 @@ def build_prediction_features(
     )
 
     # --------------------------------------------------
-    # 7. RETURN EXACT MODEL INPUT FEATURES
+    # 10. RETURN EXACT TRAINING FEATURES
     # --------------------------------------------------
 
-    features = {
+    return {
         "previous_exam_percentage": previous_exam_percentage,
         "historical_average_percentage": historical_average_percentage,
         "marks_trend": marks_trend,
@@ -249,5 +351,3 @@ def build_prediction_features(
         "attendance_sessions_to_date": attendance_sessions_to_date,
         "class_grade": class_grade,
     }
-
-    return features
