@@ -1,0 +1,802 @@
+
+=================================================================
+ATTENDANCE ANALYTICS - ACADEMIC PERIOD 1
+=================================================================
+2026-11-12 09:21:31,262 INFO sqlalchemy.engine.Engine select pg_catalog.version()
+2026-11-12 09:21:31,262 INFO sqlalchemy.engine.Engine [raw sql] {}
+2026-11-12 09:21:31,263 INFO sqlalchemy.engine.Engine select current_schema()
+2026-11-12 09:21:31,263 INFO sqlalchemy.engine.Engine [raw sql] {}
+2026-11-12 09:21:31,263 INFO sqlalchemy.engine.Engine show standard_conforming_strings
+2026-11-12 09:21:31,263 INFO sqlalchemy.engine.Engine [raw sql] {}
+2026-11-12 09:21:31,275 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-11-12 09:21:31,275 INFO sqlalchemy.engine.Engine 
+        SELECT
+            s.id AS student_id,
+            s.admission_number,
+            s.first_name,
+            s.last_name,
+
+            c.id AS class_id,
+            c.grade,
+            c.section,
+
+            COUNT(a.id) AS total_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'present'
+            ) AS present_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'absent'
+            ) AS absent_sessions,
+
+            ROUND(
+                (
+                    COUNT(a.id) FILTER (
+                        WHERE a.status = 'present'
+                    )::numeric
+                    / NULLIF(COUNT(a.id), 0)
+                ) * 100,
+                2
+            ) AS attendance_percentage
+
+        FROM attendance a
+
+        JOIN students s
+            ON s.id = a.student_id
+
+        JOIN classes c
+            ON c.id = a.class_id
+
+        JOIN subjects sub
+            ON sub.id = a.subject_id
+
+        WHERE
+            s.institution_id = %(institution_id)s
+            AND c.institution_id = %(institution_id)s
+            AND sub.institution_id = %(institution_id)s
+            AND c.academic_period_id = %(academic_period_id)s
+            AND a.class_id = c.id
+
+            AND (
+                %(class_id)s IS NULL
+                OR a.class_id = %(class_id)s
+            )
+
+            AND (
+                %(student_id)s IS NULL
+                OR a.student_id = %(student_id)s
+            )
+
+        GROUP BY
+            s.id,
+            s.admission_number,
+            s.first_name,
+            s.last_name,
+            c.id,
+            c.grade,
+            c.section
+
+        ORDER BY
+            attendance_percentage ASC NULLS LAST,
+            s.admission_number
+    
+2026-11-12 09:21:31,276 INFO sqlalchemy.engine.Engine [generated in 0.00016s] {'institution_id': 1, 'academic_period_id': 1, 'class_id': None, 'student_id': None}
+
+1. STUDENT ATTENDANCE
+Students returned: 200
+Total sessions: 26400
+Present sessions: 21637
+Absent sessions: 4763
+Overall attendance percentage: 81.96
+2026-11-12 09:21:31,327 INFO sqlalchemy.engine.Engine 
+        SELECT
+            s.id AS student_id,
+            s.admission_number,
+            s.first_name,
+            s.last_name,
+
+            c.id AS class_id,
+            c.grade,
+            c.section,
+
+            COUNT(a.id) AS total_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'present'
+            ) AS present_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'absent'
+            ) AS absent_sessions,
+
+            ROUND(
+                (
+                    COUNT(a.id) FILTER (
+                        WHERE a.status = 'present'
+                    )::numeric
+                    / NULLIF(COUNT(a.id), 0)
+                ) * 100,
+                2
+            ) AS attendance_percentage
+
+        FROM attendance a
+
+        JOIN students s
+            ON s.id = a.student_id
+
+        JOIN classes c
+            ON c.id = a.class_id
+
+        JOIN subjects sub
+            ON sub.id = a.subject_id
+
+        WHERE
+            s.institution_id = %(institution_id)s
+            AND c.institution_id = %(institution_id)s
+            AND sub.institution_id = %(institution_id)s
+            AND c.academic_period_id = %(academic_period_id)s
+            AND a.class_id = c.id
+
+            AND (
+                %(class_id)s IS NULL
+                OR a.class_id = %(class_id)s
+            )
+
+            AND (
+                %(student_id)s IS NULL
+                OR a.student_id = %(student_id)s
+            )
+
+        GROUP BY
+            s.id,
+            s.admission_number,
+            s.first_name,
+            s.last_name,
+            c.id,
+            c.grade,
+            c.section
+
+        ORDER BY
+            attendance_percentage ASC NULLS LAST,
+            s.admission_number
+    
+2026-11-12 09:21:31,327 INFO sqlalchemy.engine.Engine [cached since 0.05176s ago] {'institution_id': 1, 'academic_period_id': 1, 'class_id': None, 'student_id': 1}
+
+Student ID 1 attendance:
+STU0001 | Grade 6-A | Present: 122 | Absent: 10 | Attendance: 92.42%
+2026-11-12 09:21:31,329 INFO sqlalchemy.engine.Engine 
+        SELECT
+            sub.id AS subject_id,
+            sub.name AS subject_name,
+            sub.code AS subject_code,
+
+            COUNT(a.id) AS total_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'present'
+            ) AS present_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'absent'
+            ) AS absent_sessions,
+
+            COUNT(DISTINCT a.student_id) AS students_recorded,
+
+            ROUND(
+                (
+                    COUNT(a.id) FILTER (
+                        WHERE a.status = 'present'
+                    )::numeric
+                    / NULLIF(COUNT(a.id), 0)
+                ) * 100,
+                2
+            ) AS attendance_percentage
+
+        FROM attendance a
+
+        JOIN students s
+            ON s.id = a.student_id
+
+        JOIN classes c
+            ON c.id = a.class_id
+
+        JOIN subjects sub
+            ON sub.id = a.subject_id
+
+        WHERE
+            s.institution_id = %(institution_id)s
+            AND c.institution_id = %(institution_id)s
+            AND sub.institution_id = %(institution_id)s
+
+            AND (
+                %(academic_period_id)s IS NULL
+                OR c.academic_period_id = %(academic_period_id)s
+            )
+
+            AND (
+                %(class_id)s IS NULL
+                OR a.class_id = %(class_id)s
+            )
+
+        GROUP BY
+            sub.id,
+            sub.name,
+            sub.code
+
+        ORDER BY
+            attendance_percentage ASC NULLS LAST,
+            sub.name
+    
+2026-11-12 09:21:31,329 INFO sqlalchemy.engine.Engine [generated in 0.00013s] {'institution_id': 1, 'academic_period_id': 1, 'class_id': None}
+
+2. SUBJECT ATTENDANCE
+Subjects returned: 6
+Computer Science | Sessions: 4400 | Present: 3589 | Attendance: 81.57%
+Tamil | Sessions: 4400 | Present: 3599 | Attendance: 81.80%
+English | Sessions: 4400 | Present: 3601 | Attendance: 81.84%
+Science | Sessions: 4400 | Present: 3602 | Attendance: 81.86%
+Social Science | Sessions: 4400 | Present: 3619 | Attendance: 82.25%
+Mathematics | Sessions: 4400 | Present: 3627 | Attendance: 82.43%
+2026-11-12 09:21:31,375 INFO sqlalchemy.engine.Engine 
+        SELECT
+            c.id AS class_id,
+            c.grade,
+            c.section,
+            c.academic_period_id,
+
+            COUNT(a.id) AS total_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'present'
+            ) AS present_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'absent'
+            ) AS absent_sessions,
+
+            COUNT(DISTINCT a.student_id) AS students_recorded,
+
+            ROUND(
+                (
+                    COUNT(a.id) FILTER (
+                        WHERE a.status = 'present'
+                    )::numeric
+                    / NULLIF(COUNT(a.id), 0)
+                ) * 100,
+                2
+            ) AS attendance_percentage
+
+        FROM attendance a
+
+        JOIN students s
+            ON s.id = a.student_id
+
+        JOIN classes c
+            ON c.id = a.class_id
+
+        JOIN subjects sub
+            ON sub.id = a.subject_id
+
+        WHERE
+            s.institution_id = %(institution_id)s
+            AND c.institution_id = %(institution_id)s
+            AND sub.institution_id = %(institution_id)s
+
+            AND (
+                %(academic_period_id)s IS NULL
+                OR c.academic_period_id = %(academic_period_id)s
+            )
+
+        GROUP BY
+            c.id,
+            c.grade,
+            c.section,
+            c.academic_period_id
+
+        ORDER BY
+            c.grade,
+            c.section
+    
+2026-11-12 09:21:31,375 INFO sqlalchemy.engine.Engine [generated in 0.00027s] {'institution_id': 1, 'academic_period_id': 1}
+
+3. CLASS ATTENDANCE
+Classes returned: 5
+Grade 10-A | Students recorded: 40 | Sessions: 5280 | Attendance: 78.62%
+Grade 6-A | Students recorded: 40 | Sessions: 5280 | Attendance: 83.11%
+Grade 7-A | Students recorded: 40 | Sessions: 5280 | Attendance: 82.73%
+Grade 8-A | Students recorded: 40 | Sessions: 5280 | Attendance: 83.30%
+Grade 9-A | Students recorded: 40 | Sessions: 5280 | Attendance: 82.05%
+2026-11-12 09:21:31,419 INFO sqlalchemy.engine.Engine 
+        SELECT
+            s.id AS student_id,
+            s.admission_number,
+            s.first_name,
+            s.last_name,
+
+            c.id AS class_id,
+            c.grade,
+            c.section,
+
+            COUNT(a.id) AS total_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'present'
+            ) AS present_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'absent'
+            ) AS absent_sessions,
+
+            ROUND(
+                (
+                    COUNT(a.id) FILTER (
+                        WHERE a.status = 'present'
+                    )::numeric
+                    / NULLIF(COUNT(a.id), 0)
+                ) * 100,
+                2
+            ) AS attendance_percentage
+
+        FROM attendance a
+
+        JOIN students s
+            ON s.id = a.student_id
+
+        JOIN classes c
+            ON c.id = a.class_id
+
+        JOIN subjects sub
+            ON sub.id = a.subject_id
+
+        WHERE
+            s.institution_id = %(institution_id)s
+            AND c.institution_id = %(institution_id)s
+            AND sub.institution_id = %(institution_id)s
+
+            AND (
+                %(academic_period_id)s IS NULL
+                OR c.academic_period_id = %(academic_period_id)s
+            )
+
+            AND (
+                %(class_id)s IS NULL
+                OR a.class_id = %(class_id)s
+            )
+
+        GROUP BY
+            s.id,
+            s.admission_number,
+            s.first_name,
+            s.last_name,
+            c.id,
+            c.grade,
+            c.section
+
+        HAVING
+            COUNT(a.id) > 0
+            AND (
+                COUNT(a.id) FILTER (
+                    WHERE a.status = 'present'
+                )::numeric
+                / COUNT(a.id)
+            ) * 100 < %(threshold)s
+
+        ORDER BY
+            attendance_percentage ASC,
+            s.admission_number
+    
+2026-11-12 09:21:31,420 INFO sqlalchemy.engine.Engine [generated in 0.00021s] {'institution_id': 1, 'academic_period_id': 1, 'class_id': None, 'threshold': 75.0}
+
+4. LOW ATTENDANCE STUDENTS
+Threshold: Below 75%
+Students identified: 55
+STU0169 | Grade 10-A | Attendance: 46.97%
+STU0183 | Grade 10-A | Attendance: 47.73%
+STU0157 | Grade 9-A | Attendance: 52.27%
+STU0041 | Grade 7-A | Attendance: 56.82%
+STU0184 | Grade 10-A | Attendance: 58.33%
+STU0098 | Grade 8-A | Attendance: 59.09%
+STU0061 | Grade 7-A | Attendance: 59.85%
+STU0120 | Grade 8-A | Attendance: 59.85%
+STU0188 | Grade 10-A | Attendance: 60.61%
+STU0111 | Grade 8-A | Attendance: 61.36%
+
+=================================================================
+ATTENDANCE ANALYTICS - ACADEMIC PERIOD 2
+=================================================================
+2026-11-12 09:21:31,457 INFO sqlalchemy.engine.Engine 
+        SELECT
+            s.id AS student_id,
+            s.admission_number,
+            s.first_name,
+            s.last_name,
+
+            c.id AS class_id,
+            c.grade,
+            c.section,
+
+            COUNT(a.id) AS total_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'present'
+            ) AS present_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'absent'
+            ) AS absent_sessions,
+
+            ROUND(
+                (
+                    COUNT(a.id) FILTER (
+                        WHERE a.status = 'present'
+                    )::numeric
+                    / NULLIF(COUNT(a.id), 0)
+                ) * 100,
+                2
+            ) AS attendance_percentage
+
+        FROM attendance a
+
+        JOIN students s
+            ON s.id = a.student_id
+
+        JOIN classes c
+            ON c.id = a.class_id
+
+        JOIN subjects sub
+            ON sub.id = a.subject_id
+
+        WHERE
+            s.institution_id = %(institution_id)s
+            AND c.institution_id = %(institution_id)s
+            AND sub.institution_id = %(institution_id)s
+            AND c.academic_period_id = %(academic_period_id)s
+            AND a.class_id = c.id
+
+            AND (
+                %(class_id)s IS NULL
+                OR a.class_id = %(class_id)s
+            )
+
+            AND (
+                %(student_id)s IS NULL
+                OR a.student_id = %(student_id)s
+            )
+
+        GROUP BY
+            s.id,
+            s.admission_number,
+            s.first_name,
+            s.last_name,
+            c.id,
+            c.grade,
+            c.section
+
+        ORDER BY
+            attendance_percentage ASC NULLS LAST,
+            s.admission_number
+    
+2026-11-12 09:21:31,457 INFO sqlalchemy.engine.Engine [cached since 0.1814s ago] {'institution_id': 1, 'academic_period_id': 2, 'class_id': None, 'student_id': None}
+
+1. STUDENT ATTENDANCE
+Students returned: 200
+Total sessions: 26400
+Present sessions: 21637
+Absent sessions: 4763
+Overall attendance percentage: 81.96
+2026-11-12 09:21:31,496 INFO sqlalchemy.engine.Engine 
+        SELECT
+            s.id AS student_id,
+            s.admission_number,
+            s.first_name,
+            s.last_name,
+
+            c.id AS class_id,
+            c.grade,
+            c.section,
+
+            COUNT(a.id) AS total_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'present'
+            ) AS present_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'absent'
+            ) AS absent_sessions,
+
+            ROUND(
+                (
+                    COUNT(a.id) FILTER (
+                        WHERE a.status = 'present'
+                    )::numeric
+                    / NULLIF(COUNT(a.id), 0)
+                ) * 100,
+                2
+            ) AS attendance_percentage
+
+        FROM attendance a
+
+        JOIN students s
+            ON s.id = a.student_id
+
+        JOIN classes c
+            ON c.id = a.class_id
+
+        JOIN subjects sub
+            ON sub.id = a.subject_id
+
+        WHERE
+            s.institution_id = %(institution_id)s
+            AND c.institution_id = %(institution_id)s
+            AND sub.institution_id = %(institution_id)s
+            AND c.academic_period_id = %(academic_period_id)s
+            AND a.class_id = c.id
+
+            AND (
+                %(class_id)s IS NULL
+                OR a.class_id = %(class_id)s
+            )
+
+            AND (
+                %(student_id)s IS NULL
+                OR a.student_id = %(student_id)s
+            )
+
+        GROUP BY
+            s.id,
+            s.admission_number,
+            s.first_name,
+            s.last_name,
+            c.id,
+            c.grade,
+            c.section
+
+        ORDER BY
+            attendance_percentage ASC NULLS LAST,
+            s.admission_number
+    
+2026-11-12 09:21:31,496 INFO sqlalchemy.engine.Engine [cached since 0.2202s ago] {'institution_id': 1, 'academic_period_id': 2, 'class_id': None, 'student_id': 1}
+
+Student ID 1 attendance:
+STU0001 | Grade 6-A | Present: 124 | Absent: 8 | Attendance: 93.94%
+2026-11-12 09:21:31,498 INFO sqlalchemy.engine.Engine 
+        SELECT
+            sub.id AS subject_id,
+            sub.name AS subject_name,
+            sub.code AS subject_code,
+
+            COUNT(a.id) AS total_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'present'
+            ) AS present_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'absent'
+            ) AS absent_sessions,
+
+            COUNT(DISTINCT a.student_id) AS students_recorded,
+
+            ROUND(
+                (
+                    COUNT(a.id) FILTER (
+                        WHERE a.status = 'present'
+                    )::numeric
+                    / NULLIF(COUNT(a.id), 0)
+                ) * 100,
+                2
+            ) AS attendance_percentage
+
+        FROM attendance a
+
+        JOIN students s
+            ON s.id = a.student_id
+
+        JOIN classes c
+            ON c.id = a.class_id
+
+        JOIN subjects sub
+            ON sub.id = a.subject_id
+
+        WHERE
+            s.institution_id = %(institution_id)s
+            AND c.institution_id = %(institution_id)s
+            AND sub.institution_id = %(institution_id)s
+
+            AND (
+                %(academic_period_id)s IS NULL
+                OR c.academic_period_id = %(academic_period_id)s
+            )
+
+            AND (
+                %(class_id)s IS NULL
+                OR a.class_id = %(class_id)s
+            )
+
+        GROUP BY
+            sub.id,
+            sub.name,
+            sub.code
+
+        ORDER BY
+            attendance_percentage ASC NULLS LAST,
+            sub.name
+    
+2026-11-12 09:21:31,498 INFO sqlalchemy.engine.Engine [cached since 0.1689s ago] {'institution_id': 1, 'academic_period_id': 2, 'class_id': None}
+
+2. SUBJECT ATTENDANCE
+Subjects returned: 6
+Social Science | Sessions: 4400 | Present: 3563 | Attendance: 80.98%
+English | Sessions: 4400 | Present: 3594 | Attendance: 81.68%
+Mathematics | Sessions: 4400 | Present: 3604 | Attendance: 81.91%
+Computer Science | Sessions: 4400 | Present: 3608 | Attendance: 82.00%
+Tamil | Sessions: 4400 | Present: 3618 | Attendance: 82.23%
+Science | Sessions: 4400 | Present: 3650 | Attendance: 82.95%
+2026-11-12 09:21:31,542 INFO sqlalchemy.engine.Engine 
+        SELECT
+            c.id AS class_id,
+            c.grade,
+            c.section,
+            c.academic_period_id,
+
+            COUNT(a.id) AS total_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'present'
+            ) AS present_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'absent'
+            ) AS absent_sessions,
+
+            COUNT(DISTINCT a.student_id) AS students_recorded,
+
+            ROUND(
+                (
+                    COUNT(a.id) FILTER (
+                        WHERE a.status = 'present'
+                    )::numeric
+                    / NULLIF(COUNT(a.id), 0)
+                ) * 100,
+                2
+            ) AS attendance_percentage
+
+        FROM attendance a
+
+        JOIN students s
+            ON s.id = a.student_id
+
+        JOIN classes c
+            ON c.id = a.class_id
+
+        JOIN subjects sub
+            ON sub.id = a.subject_id
+
+        WHERE
+            s.institution_id = %(institution_id)s
+            AND c.institution_id = %(institution_id)s
+            AND sub.institution_id = %(institution_id)s
+
+            AND (
+                %(academic_period_id)s IS NULL
+                OR c.academic_period_id = %(academic_period_id)s
+            )
+
+        GROUP BY
+            c.id,
+            c.grade,
+            c.section,
+            c.academic_period_id
+
+        ORDER BY
+            c.grade,
+            c.section
+    
+2026-11-12 09:21:31,542 INFO sqlalchemy.engine.Engine [cached since 0.1673s ago] {'institution_id': 1, 'academic_period_id': 2}
+
+3. CLASS ATTENDANCE
+Classes returned: 5
+Grade 10-A | Students recorded: 40 | Sessions: 5280 | Attendance: 78.96%
+Grade 6-A | Students recorded: 40 | Sessions: 5280 | Attendance: 84.22%
+Grade 7-A | Students recorded: 40 | Sessions: 5280 | Attendance: 82.12%
+Grade 8-A | Students recorded: 40 | Sessions: 5280 | Attendance: 83.18%
+Grade 9-A | Students recorded: 40 | Sessions: 5280 | Attendance: 81.31%
+2026-11-12 09:21:31,584 INFO sqlalchemy.engine.Engine 
+        SELECT
+            s.id AS student_id,
+            s.admission_number,
+            s.first_name,
+            s.last_name,
+
+            c.id AS class_id,
+            c.grade,
+            c.section,
+
+            COUNT(a.id) AS total_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'present'
+            ) AS present_sessions,
+
+            COUNT(a.id) FILTER (
+                WHERE a.status = 'absent'
+            ) AS absent_sessions,
+
+            ROUND(
+                (
+                    COUNT(a.id) FILTER (
+                        WHERE a.status = 'present'
+                    )::numeric
+                    / NULLIF(COUNT(a.id), 0)
+                ) * 100,
+                2
+            ) AS attendance_percentage
+
+        FROM attendance a
+
+        JOIN students s
+            ON s.id = a.student_id
+
+        JOIN classes c
+            ON c.id = a.class_id
+
+        JOIN subjects sub
+            ON sub.id = a.subject_id
+
+        WHERE
+            s.institution_id = %(institution_id)s
+            AND c.institution_id = %(institution_id)s
+            AND sub.institution_id = %(institution_id)s
+
+            AND (
+                %(academic_period_id)s IS NULL
+                OR c.academic_period_id = %(academic_period_id)s
+            )
+
+            AND (
+                %(class_id)s IS NULL
+                OR a.class_id = %(class_id)s
+            )
+
+        GROUP BY
+            s.id,
+            s.admission_number,
+            s.first_name,
+            s.last_name,
+            c.id,
+            c.grade,
+            c.section
+
+        HAVING
+            COUNT(a.id) > 0
+            AND (
+                COUNT(a.id) FILTER (
+                    WHERE a.status = 'present'
+                )::numeric
+                / COUNT(a.id)
+            ) * 100 < %(threshold)s
+
+        ORDER BY
+            attendance_percentage ASC,
+            s.admission_number
+    
+2026-11-12 09:21:31,584 INFO sqlalchemy.engine.Engine [cached since 0.165s ago] {'institution_id': 1, 'academic_period_id': 2, 'class_id': None, 'threshold': 75.0}
+
+4. LOW ATTENDANCE STUDENTS
+Threshold: Below 75%
+Students identified: 48
+STU0169 | Grade 10-A | Attendance: 49.24%
+STU0157 | Grade 9-A | Attendance: 53.79%
+STU0111 | Grade 8-A | Attendance: 55.30%
+STU0059 | Grade 7-A | Attendance: 59.09%
+STU0041 | Grade 7-A | Attendance: 59.85%
+STU0072 | Grade 7-A | Attendance: 59.85%
+STU0124 | Grade 9-A | Attendance: 61.36%
+STU0183 | Grade 10-A | Attendance: 61.36%
+STU0188 | Grade 10-A | Attendance: 62.12%
+STU0096 | Grade 8-A | Attendance: 62.88%
+2026-11-12 09:21:31,621 INFO sqlalchemy.engine.Engine ROLLBACK
+
+Database session closed.

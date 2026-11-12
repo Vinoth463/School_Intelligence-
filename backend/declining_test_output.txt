@@ -1,0 +1,515 @@
+
+============================================================
+ACADEMIC PERIOD 1
+============================================================
+2026-11-12 08:43:53,156 INFO sqlalchemy.engine.Engine select pg_catalog.version()
+2026-11-12 08:43:53,156 INFO sqlalchemy.engine.Engine [raw sql] {}
+2026-11-12 08:43:53,157 INFO sqlalchemy.engine.Engine select current_schema()
+2026-11-12 08:43:53,157 INFO sqlalchemy.engine.Engine [raw sql] {}
+2026-11-12 08:43:53,157 INFO sqlalchemy.engine.Engine show standard_conforming_strings
+2026-11-12 08:43:53,157 INFO sqlalchemy.engine.Engine [raw sql] {}
+2026-11-12 08:43:53,158 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-11-12 08:43:53,159 INFO sqlalchemy.engine.Engine 
+        WITH examination_performance AS (
+            SELECT
+                s.id AS student_id,
+                s.admission_number,
+                s.first_name,
+                s.last_name,
+
+                e.id AS examination_id,
+                e.name AS examination_name,
+                e.academic_period_id,
+                e.exam_date,
+
+                m.class_id,
+
+                SUM(m.obtained_marks) AS total_obtained_marks,
+                SUM(m.max_marks) AS total_max_marks,
+
+                ROUND(
+                    (
+                        SUM(m.obtained_marks)
+                        / NULLIF(SUM(m.max_marks), 0)
+                    )::numeric * 100,
+                    2
+                ) AS overall_percentage
+
+            FROM students s
+
+            JOIN marks m
+                ON m.student_id = s.id
+
+            JOIN examinations e
+                ON e.id = m.examination_id
+
+            JOIN subjects sub
+                ON sub.id = m.subject_id
+
+            JOIN classes c
+                ON c.id = m.class_id
+
+            WHERE s.institution_id = %(institution_id)s AND e.institution_id = %(institution_id)s AND sub.institution_id = %(institution_id)s AND c.institution_id = %(institution_id)s AND e.academic_period_id = c.academic_period_id AND s.id = m.student_id AND e.academic_period_id = %(academic_period_id)s
+
+            GROUP BY
+                s.id,
+                s.admission_number,
+                s.first_name,
+                s.last_name,
+                e.id,
+                e.name,
+                e.academic_period_id,
+                e.exam_date,
+                m.class_id
+        ),
+
+        performance_changes AS (
+            SELECT
+                *,
+
+                LAG(examination_id) OVER (
+                    PARTITION BY student_id, academic_period_id
+                    ORDER BY exam_date, examination_id
+                ) AS previous_examination_id,
+
+                LAG(examination_name) OVER (
+                    PARTITION BY student_id, academic_period_id
+                    ORDER BY exam_date, examination_id
+                ) AS previous_examination_name,
+
+                LAG(overall_percentage) OVER (
+                    PARTITION BY student_id, academic_period_id
+                    ORDER BY exam_date, examination_id
+                ) AS previous_percentage
+
+            FROM examination_performance
+        )
+
+        SELECT
+            student_id,
+            admission_number,
+            first_name,
+            last_name,
+
+            academic_period_id,
+            class_id,
+
+            previous_examination_id,
+            previous_examination_name,
+            examination_id,
+            examination_name,
+
+            previous_percentage,
+            overall_percentage AS current_percentage,
+
+            ROUND(
+                (overall_percentage - previous_percentage)::numeric,
+                2
+            ) AS percentage_change,
+
+            CASE
+                WHEN overall_percentage < previous_percentage
+                    THEN 'declining'
+                WHEN overall_percentage > previous_percentage
+                    THEN 'improving'
+                ELSE 'unchanged'
+            END AS performance_status
+
+        FROM performance_changes
+
+        WHERE previous_percentage IS NOT NULL
+            AND overall_percentage < previous_percentage
+            AND previous_percentage - overall_percentage
+                >= %(decline_threshold)s
+
+        ORDER BY
+            percentage_change ASC,
+            student_id ASC
+    
+2026-11-12 08:43:53,159 INFO sqlalchemy.engine.Engine [generated in 0.00023s] {'institution_id': 1, 'academic_period_id': 1, 'decline_threshold': 0.0}
+Overall decline records: 220
+Unique students with declines: 159
+
+Top 10 overall declines:
+STU0034 | Midterm Examination | Previous: 72.14% | Current: 56.24% | Change: -15.90%
+STU0051 | Final Examination | Previous: 74.04% | Current: 60.49% | Change: -13.55%
+STU0024 | Final Examination | Previous: 62.50% | Current: 48.97% | Change: -13.53%
+STU0013 | Midterm Examination | Previous: 72.95% | Current: 59.69% | Change: -13.26%
+STU0080 | Final Examination | Previous: 70.67% | Current: 57.69% | Change: -12.98%
+STU0170 | Final Examination | Previous: 44.91% | Current: 32.05% | Change: -12.86%
+STU0008 | Midterm Examination | Previous: 80.88% | Current: 68.36% | Change: -12.52%
+STU0120 | Final Examination | Previous: 34.50% | Current: 22.06% | Change: -12.44%
+STU0141 | Midterm Examination | Previous: 86.88% | Current: 75.14% | Change: -11.74%
+STU0079 | Midterm Examination | Previous: 70.11% | Current: 58.39% | Change: -11.72%
+
+Non-declining records returned: 0
+2026-11-12 08:43:53,185 INFO sqlalchemy.engine.Engine 
+        WITH subject_performance AS (
+            SELECT
+                s.id AS student_id,
+                s.admission_number,
+                s.first_name,
+                s.last_name,
+
+                sub.id AS subject_id,
+                sub.name AS subject_name,
+                sub.code AS subject_code,
+
+                e.id AS examination_id,
+                e.name AS examination_name,
+                e.exam_date,
+
+                ROUND(
+                    (
+                        SUM(m.obtained_marks)
+                        / NULLIF(SUM(m.max_marks), 0)
+                    )::numeric * 100,
+                    2
+                ) AS subject_percentage
+
+            FROM students s
+
+            JOIN marks m
+                ON m.student_id = s.id
+
+            JOIN examinations e
+                ON e.id = m.examination_id
+
+            JOIN subjects sub
+                ON sub.id = m.subject_id
+
+            JOIN classes c
+                ON c.id = m.class_id
+
+            WHERE s.institution_id = %(institution_id)s AND sub.institution_id = %(institution_id)s AND e.institution_id = %(institution_id)s AND c.institution_id = %(institution_id)s AND e.academic_period_id = %(academic_period_id)s AND e.academic_period_id = c.academic_period_id AND s.id = %(student_id)s
+
+            GROUP BY
+                s.id,
+                s.admission_number,
+                s.first_name,
+                s.last_name,
+                sub.id,
+                sub.name,
+                sub.code,
+                e.id,
+                e.name,
+                e.exam_date
+        ),
+
+        subject_changes AS (
+            SELECT
+                *,
+
+                LAG(subject_percentage) OVER (
+                    PARTITION BY student_id, subject_id
+                    ORDER BY exam_date, examination_id
+                ) AS previous_percentage,
+
+                LAG(examination_name) OVER (
+                    PARTITION BY student_id, subject_id
+                    ORDER BY exam_date, examination_id
+                ) AS previous_examination_name
+
+            FROM subject_performance
+        )
+
+        SELECT
+            student_id,
+            admission_number,
+            first_name,
+            last_name,
+
+            subject_id,
+            subject_name,
+            subject_code,
+
+            previous_examination_name,
+            examination_name,
+
+            previous_percentage,
+            subject_percentage AS current_percentage,
+
+            ROUND(
+                (
+                    subject_percentage - previous_percentage
+                )::numeric,
+                2
+            ) AS percentage_change
+
+        FROM subject_changes
+
+        WHERE previous_percentage IS NOT NULL
+          AND subject_percentage < previous_percentage
+
+        ORDER BY
+            percentage_change ASC,
+            student_id ASC,
+            subject_name ASC
+    
+2026-11-12 08:43:53,186 INFO sqlalchemy.engine.Engine [generated in 0.00018s] {'institution_id': 1, 'academic_period_id': 1, 'student_id': 1}
+
+Subject declines for student ID 1:
+Total subject declines: 9
+Social Science | Midterm Examination -> Final Examination | Previous: 53.43% | Current: 39.96% | Change: -13.47%
+Mathematics | Unit Test 1 -> Midterm Examination | Previous: 38.33% | Current: 25.08% | Change: -13.25%
+English | Midterm Examination -> Final Examination | Previous: 45.85% | Current: 35.12% | Change: -10.73%
+Computer Science | Unit Test 1 -> Midterm Examination | Previous: 47.87% | Current: 41.18% | Change: -6.69%
+Tamil | Unit Test 1 -> Midterm Examination | Previous: 47.30% | Current: 41.01% | Change: -6.29%
+Science | Unit Test 1 -> Midterm Examination | Previous: 43.98% | Current: 39.41% | Change: -4.57%
+English | Unit Test 1 -> Midterm Examination | Previous: 49.94% | Current: 45.85% | Change: -4.09%
+Social Science | Unit Test 1 -> Midterm Examination | Previous: 56.82% | Current: 53.43% | Change: -3.39%
+Tamil | Midterm Examination -> Final Examination | Previous: 41.01% | Current: 37.81% | Change: -3.20%
+
+============================================================
+ACADEMIC PERIOD 2
+============================================================
+2026-11-12 08:43:53,188 INFO sqlalchemy.engine.Engine 
+        WITH examination_performance AS (
+            SELECT
+                s.id AS student_id,
+                s.admission_number,
+                s.first_name,
+                s.last_name,
+
+                e.id AS examination_id,
+                e.name AS examination_name,
+                e.academic_period_id,
+                e.exam_date,
+
+                m.class_id,
+
+                SUM(m.obtained_marks) AS total_obtained_marks,
+                SUM(m.max_marks) AS total_max_marks,
+
+                ROUND(
+                    (
+                        SUM(m.obtained_marks)
+                        / NULLIF(SUM(m.max_marks), 0)
+                    )::numeric * 100,
+                    2
+                ) AS overall_percentage
+
+            FROM students s
+
+            JOIN marks m
+                ON m.student_id = s.id
+
+            JOIN examinations e
+                ON e.id = m.examination_id
+
+            JOIN subjects sub
+                ON sub.id = m.subject_id
+
+            JOIN classes c
+                ON c.id = m.class_id
+
+            WHERE s.institution_id = %(institution_id)s AND e.institution_id = %(institution_id)s AND sub.institution_id = %(institution_id)s AND c.institution_id = %(institution_id)s AND e.academic_period_id = c.academic_period_id AND s.id = m.student_id AND e.academic_period_id = %(academic_period_id)s
+
+            GROUP BY
+                s.id,
+                s.admission_number,
+                s.first_name,
+                s.last_name,
+                e.id,
+                e.name,
+                e.academic_period_id,
+                e.exam_date,
+                m.class_id
+        ),
+
+        performance_changes AS (
+            SELECT
+                *,
+
+                LAG(examination_id) OVER (
+                    PARTITION BY student_id, academic_period_id
+                    ORDER BY exam_date, examination_id
+                ) AS previous_examination_id,
+
+                LAG(examination_name) OVER (
+                    PARTITION BY student_id, academic_period_id
+                    ORDER BY exam_date, examination_id
+                ) AS previous_examination_name,
+
+                LAG(overall_percentage) OVER (
+                    PARTITION BY student_id, academic_period_id
+                    ORDER BY exam_date, examination_id
+                ) AS previous_percentage
+
+            FROM examination_performance
+        )
+
+        SELECT
+            student_id,
+            admission_number,
+            first_name,
+            last_name,
+
+            academic_period_id,
+            class_id,
+
+            previous_examination_id,
+            previous_examination_name,
+            examination_id,
+            examination_name,
+
+            previous_percentage,
+            overall_percentage AS current_percentage,
+
+            ROUND(
+                (overall_percentage - previous_percentage)::numeric,
+                2
+            ) AS percentage_change,
+
+            CASE
+                WHEN overall_percentage < previous_percentage
+                    THEN 'declining'
+                WHEN overall_percentage > previous_percentage
+                    THEN 'improving'
+                ELSE 'unchanged'
+            END AS performance_status
+
+        FROM performance_changes
+
+        WHERE previous_percentage IS NOT NULL
+            AND overall_percentage < previous_percentage
+            AND previous_percentage - overall_percentage
+                >= %(decline_threshold)s
+
+        ORDER BY
+            percentage_change ASC,
+            student_id ASC
+    
+2026-11-12 08:43:53,188 INFO sqlalchemy.engine.Engine [cached since 0.02956s ago] {'institution_id': 1, 'academic_period_id': 2, 'decline_threshold': 0.0}
+Overall decline records: 217
+Unique students with declines: 163
+
+Top 10 overall declines:
+STU0136 | Midterm Examination | Previous: 36.67% | Current: 16.56% | Change: -20.11%
+STU0034 | Midterm Examination | Previous: 55.22% | Current: 36.50% | Change: -18.72%
+STU0199 | Final Examination | Previous: 51.62% | Current: 38.42% | Change: -13.20%
+STU0014 | Final Examination | Previous: 61.35% | Current: 48.46% | Change: -12.89%
+STU0113 | Midterm Examination | Previous: 29.84% | Current: 17.47% | Change: -12.37%
+STU0172 | Final Examination | Previous: 28.92% | Current: 16.74% | Change: -12.18%
+STU0088 | Midterm Examination | Previous: 38.85% | Current: 26.71% | Change: -12.14%
+STU0127 | Midterm Examination | Previous: 70.00% | Current: 57.90% | Change: -12.10%
+STU0187 | Midterm Examination | Previous: 82.47% | Current: 70.40% | Change: -12.07%
+STU0009 | Midterm Examination | Previous: 73.79% | Current: 61.91% | Change: -11.88%
+
+Non-declining records returned: 0
+2026-11-12 08:43:53,201 INFO sqlalchemy.engine.Engine 
+        WITH subject_performance AS (
+            SELECT
+                s.id AS student_id,
+                s.admission_number,
+                s.first_name,
+                s.last_name,
+
+                sub.id AS subject_id,
+                sub.name AS subject_name,
+                sub.code AS subject_code,
+
+                e.id AS examination_id,
+                e.name AS examination_name,
+                e.exam_date,
+
+                ROUND(
+                    (
+                        SUM(m.obtained_marks)
+                        / NULLIF(SUM(m.max_marks), 0)
+                    )::numeric * 100,
+                    2
+                ) AS subject_percentage
+
+            FROM students s
+
+            JOIN marks m
+                ON m.student_id = s.id
+
+            JOIN examinations e
+                ON e.id = m.examination_id
+
+            JOIN subjects sub
+                ON sub.id = m.subject_id
+
+            JOIN classes c
+                ON c.id = m.class_id
+
+            WHERE s.institution_id = %(institution_id)s AND sub.institution_id = %(institution_id)s AND e.institution_id = %(institution_id)s AND c.institution_id = %(institution_id)s AND e.academic_period_id = %(academic_period_id)s AND e.academic_period_id = c.academic_period_id AND s.id = %(student_id)s
+
+            GROUP BY
+                s.id,
+                s.admission_number,
+                s.first_name,
+                s.last_name,
+                sub.id,
+                sub.name,
+                sub.code,
+                e.id,
+                e.name,
+                e.exam_date
+        ),
+
+        subject_changes AS (
+            SELECT
+                *,
+
+                LAG(subject_percentage) OVER (
+                    PARTITION BY student_id, subject_id
+                    ORDER BY exam_date, examination_id
+                ) AS previous_percentage,
+
+                LAG(examination_name) OVER (
+                    PARTITION BY student_id, subject_id
+                    ORDER BY exam_date, examination_id
+                ) AS previous_examination_name
+
+            FROM subject_performance
+        )
+
+        SELECT
+            student_id,
+            admission_number,
+            first_name,
+            last_name,
+
+            subject_id,
+            subject_name,
+            subject_code,
+
+            previous_examination_name,
+            examination_name,
+
+            previous_percentage,
+            subject_percentage AS current_percentage,
+
+            ROUND(
+                (
+                    subject_percentage - previous_percentage
+                )::numeric,
+                2
+            ) AS percentage_change
+
+        FROM subject_changes
+
+        WHERE previous_percentage IS NOT NULL
+          AND subject_percentage < previous_percentage
+
+        ORDER BY
+            percentage_change ASC,
+            student_id ASC,
+            subject_name ASC
+    
+2026-11-12 08:43:53,201 INFO sqlalchemy.engine.Engine [cached since 0.01576s ago] {'institution_id': 1, 'academic_period_id': 2, 'student_id': 1}
+
+Subject declines for student ID 1:
+Total subject declines: 8
+Science | Unit Test 1 -> Midterm Examination | Previous: 53.09% | Current: 28.92% | Change: -24.17%
+Mathematics | Midterm Examination -> Final Examination | Previous: 37.44% | Current: 24.99% | Change: -12.45%
+Computer Science | Midterm Examination -> Final Examination | Previous: 41.28% | Current: 30.36% | Change: -10.92%
+Tamil | Unit Test 1 -> Midterm Examination | Previous: 40.27% | Current: 30.10% | Change: -10.17%
+Social Science | Midterm Examination -> Final Examination | Previous: 52.70% | Current: 44.69% | Change: -8.01%
+Computer Science | Unit Test 1 -> Midterm Examination | Previous: 48.56% | Current: 41.28% | Change: -7.28%
+Social Science | Unit Test 1 -> Midterm Examination | Previous: 57.94% | Current: 52.70% | Change: -5.24%
+English | Unit Test 1 -> Midterm Examination | Previous: 38.26% | Current: 36.81% | Change: -1.45%
+2026-11-12 08:43:53,203 INFO sqlalchemy.engine.Engine ROLLBACK
