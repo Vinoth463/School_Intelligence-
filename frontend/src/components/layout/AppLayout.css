@@ -1,0 +1,286 @@
+
+/* =========================================
+   APPLICATION LAYOUT
+========================================= */
+
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background: #f5f7fb;
+}
+
+/* Sidebar wrapper */
+
+.sidebar-shell {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 260px;
+  height: 100vh;
+  z-index: 120;
+}
+
+/* Main content */
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 100vh;
+  margin-left: 260px;
+}
+
+/* Header */
+
+.app-header {
+  height: 72px;
+  min-height: 72px;
+  padding: 0 32px;
+  background: #ffffff;
+  border-bottom: 1px solid #e8ecf2;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 14px;
+}
+
+.header-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #8993a4;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.header-breadcrumb strong {
+  color: #263247;
+  font-weight: 600;
+}
+
+.breadcrumb-separator {
+  color: #c3cad5;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-shrink: 0;
+}
+
+.header-icon-button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #e8ecf2;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #596579;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-icon-button:hover {
+  background: #f5f7fb;
+}
+
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.header-user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #eef2ff;
+  color: #4355a5;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.header-user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.header-user-details strong {
+  color: #263247;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.header-user-details span {
+  color: #8993a4;
+  font-size: 11px;
+  text-transform: capitalize;
+}
+
+/* Page content */
+
+.app-content {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  padding: 30px 32px;
+}
+
+/* Mobile menu button - hidden on desktop */
+
+.mobile-menu-button {
+  display: none;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid #e8ecf2;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #263247;
+}
+
+/* Drawer backdrop - hidden by default */
+
+.sidebar-backdrop {
+  display: none;
+}
+
+/* =========================================
+   TABLET AND MOBILE: BELOW 1024px
+========================================= */
+
+@media (max-width: 1024px) {
+  .sidebar-shell {
+    transform: translateX(-100%);
+    transition: transform 0.28s ease;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .sidebar-shell.sidebar-open {
+    transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .app-main {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .mobile-menu-button {
+    display: flex;
+    flex-shrink: 0;
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 110;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: rgba(10, 20, 38, 0.55);
+  }
+
+  .app-header {
+    padding: 0 24px;
+  }
+
+  .app-content {
+    padding: 26px 24px;
+  }
+}
+
+/* =========================================
+   MOBILE: BELOW 600px
+========================================= */
+
+@media (max-width: 600px) {
+  .app-header {
+    height: 64px;
+    min-height: 64px;
+    padding: 0 14px;
+  }
+
+  .header-left {
+    gap: 10px;
+  }
+
+  .header-breadcrumb {
+    gap: 6px;
+    font-size: 11px;
+  }
+
+  .header-breadcrumb span:first-child {
+    display: none;
+  }
+
+  .breadcrumb-separator {
+    display: none;
+  }
+
+  .header-actions {
+    gap: 9px;
+  }
+
+  .header-icon-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .header-user-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .header-user-details {
+    display: none;
+  }
+
+  .app-content {
+    padding: 20px 14px;
+  }
+}
+
+/* Small mobile */
+
+@media (max-width: 380px) {
+  .app-content {
+    padding: 16px 12px;
+  }
+
+  .app-header {
+    padding: 0 12px;
+  }
+}
+
+/* Respect reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-shell {
+    transition: none;
+  }
+}

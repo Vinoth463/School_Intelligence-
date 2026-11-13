@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
+    # Groq GenAI
+    GROQ_API_KEY: str | None = None
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
+    GROQ_MAX_TOKENS: int = 2048
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

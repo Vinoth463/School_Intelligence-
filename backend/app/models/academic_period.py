@@ -1,6 +1,7 @@
 
 from datetime import date, datetime
 
+from pydantic import BaseModel
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -71,3 +72,16 @@ class AcademicPeriod(Base):
         server_default=func.now(),
         nullable=False,
     )
+
+class AcademicPeriodAttendanceComparisonResponse(BaseModel):
+    academic_period_id: int
+    academic_period_name: str
+    start_date: date
+    end_date: date
+
+    total_sessions: int
+    present_sessions: int
+    absent_sessions: int
+    students_recorded: int
+
+    attendance_percentage: float | None

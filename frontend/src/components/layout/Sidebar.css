@@ -1,0 +1,119 @@
+
+.app-sidebar {
+  width: 260px;
+  min-width: 260px;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  background: #14243e;
+  color: #ffffff;
+  padding: 25px 17px 18px;
+  z-index: 100;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 7px 30px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-brand-icon {
+  width: 43px;
+  height: 43px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #315f9c;
+  border-radius: 11px;
+}
+
+.sidebar-brand h2 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 5px;
+}
+
+.sidebar-brand span {
+  font-size: 11px;
+  color: #9eafc8;
+}
+
+.sidebar-section-label {
+  padding: 28px 12px 13px;
+  color: #8295b2;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+
+.sidebar-navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-height: 46px;
+  padding: 0 13px;
+  border-radius: 8px;
+  color: #b6c4d8;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s, color 0.2s;
+}
+
+.sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #ffffff;
+}
+
+.sidebar-link.active {
+  background: #315f9c;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.sidebar-bottom {
+  margin-top: auto;
+}
+
+.sidebar-logout {
+  width: 100%;
+  min-height: 45px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 0 13px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: #c0ccdc;
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.sidebar-logout:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.sidebar-version {
+  padding: 17px 12px 0;
+  margin-top: 13px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: #8295b2;
+  font-size: 10px;
+}

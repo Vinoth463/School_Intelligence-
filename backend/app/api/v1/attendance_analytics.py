@@ -10,6 +10,8 @@ from app.services.attendance_analytics_service import (
     get_subject_attendance,
     get_class_attendance,
     get_low_attendance_students,
+    get_student_subject_attendance,
+    get_academic_period_attendance_comparison,
 )
 
 from app.schemas.attendance_analytics import (
@@ -17,6 +19,8 @@ from app.schemas.attendance_analytics import (
     SubjectAttendanceResponse,
     ClassAttendanceResponse,
     LowAttendanceResponse,
+    StudentSubjectAttendanceResponse,
+    AcademicPeriodAttendanceComparisonResponse,
 )
 
 
@@ -214,3 +218,65 @@ def low_attendance_students(
         academic_period_id=academic_period_id,
         class_id=class_id,
     )
+
+@router.get(
+    "/student-subjects",
+    response_model=list[StudentSubjectAttendanceResponse],
+)
+def student_subject_attendance(
+    academic_period_id: int = Query(..., gt=0),
+    class_id: int | None = Query(default=None, gt=0),
+    student_id: int | None = Query(default=None, gt=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    institution_id = current_user.institution_id
+
+    validate_academic_period(
+        db,
+        institution_id,
+        academic_period_id,
+    )
+
+    if class_id is not None:
+        validate_class(
+            db,
+            institution_id,
+            class_id,
+            academic_period_id,
+        )
+
+    if student_id is not None:
+        student = db.query(Student).filter(
+            Student.id == student_id,
+            Student.institution_id == institution_id,
+        ).first()
+
+        if student is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Student not found",
+            )
+
+    return get_student_subject_attendance(
+        db=db,
+        institution_id=institution_id,
+        academic_period_id=academic_period_id,
+        class_id=class_id,
+        student_id=student_id,
+    )
+
+
+@router.get(
+    "/period-comparison",
+    response_model=list[AcademicPeriodAttendanceComparisonResponse],
+)
+def academic_period_attendance_comparison(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return get_academic_period_attendance_comparison(
+        db=db,
+        institution_id=current_user.institution_id,
+    )
+

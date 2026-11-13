@@ -5,15 +5,23 @@
     "target_definition": "Next examination percentage below 40%",
     "underperformance_threshold": 40,
     "classification_probability_threshold": 0.5,
+    "risk_category_thresholds": {
+        "low_upper_bound": 0.0032436376541812345,
+        "high_lower_bound": 0.7220475037570796,
+        "selection_method": "Validation-based observed underperformance separation; each category contains at least 10% of validation records",
+        "validation_exam_ids": [
+            5
+        ]
+    },
     "selection_criterion": "Highest validation F1-score",
-    "validation_f1": 0.7451,
+    "validation_f1": 0.7450980392156863,
     "test_metrics": {
-        "accuracy": 0.9042,
-        "precision": 0.7093,
-        "recall": 0.7667,
-        "f1_score": 0.7368,
-        "roc_auc": 0.9518,
-        "pr_auc": 0.7983
+        "accuracy": 0.9041666666666667,
+        "precision": 0.7092511013215859,
+        "recall": 0.7666666666666667,
+        "f1_score": 0.7368421052631579,
+        "roc_auc": 0.9517797017797018,
+        "pr_auc": 0.7982592804819166
     },
     "training_target_exam_ids": [
         2,
@@ -34,6 +42,7 @@
         "Evaluation uses synthetic data only.",
         "Test cohort contains students also present in training.",
         "Performance on unseen schools and students is unknown.",
+        "Risk categories are operational indicators, not calibrated probabilities.",
         "Predictions are decision-support indicators, not final judgments."
     ]
 }

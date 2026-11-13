@@ -82,8 +82,11 @@ try:
             )
 
         # Basic validation
-        assert len(records) == 200, (
-            f"Expected 200 students, got {len(records)}"
+        expected_students = 200 if period_id == 1 else 201
+
+        assert len(records) == expected_students, (
+            f"Expected {expected_students} students "
+            f"for period {period_id}, got {len(records)}"
         )
 
         assert all(
