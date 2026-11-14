@@ -27,6 +27,8 @@ from app.api.v1.period_comparison import (
 
 from app.api.v1.ml_predictions import router as ml_predictions_router
 from app.api.v1.imports import router as imports_router
+from app.api.v1.reports import router as reports_router
+
 
 from app.api.v1.ai_assistant import router as ai_assistant_router
 app = FastAPI(
@@ -74,6 +76,9 @@ app.include_router(imports_router, prefix=API_PREFIX)
 
 # Generative AI Academic Assistant
 app.include_router(ai_assistant_router, prefix=API_PREFIX)
+
+# Academic Reports
+app.include_router(reports_router, prefix=API_PREFIX)
 
 @app.get("/")
 def root():

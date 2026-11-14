@@ -14,11 +14,9 @@ from app.services.attendance_analytics_service import (
 from app.ai.academic_support_service import (
     get_students_with_low_marks_and_attendance,
 )
-
 from app.services.declining_performance_service import (
     get_declining_performance,
 )
-
 from app.services.student_analytics_service import (
     get_student_performance,
 )
@@ -29,6 +27,7 @@ from app.ml.prediction_service import predict_underperformance
 from app.models.student import Student
 from app.models.subject import Subject
 from app.models.examination import Examination
+
 
 def make_json_safe(value):
     if isinstance(value, Decimal):
@@ -51,6 +50,7 @@ def make_json_safe(value):
 
     return value
 
+
 def retrieve_academic_data(
     db: Session,
     institution_id: int,
@@ -64,66 +64,151 @@ def retrieve_academic_data(
 
     normalized_question = question.lower().strip()
 
-    # 1. ML-based next examination underperformance prediction
-    prediction_keywords = (
+    # 1. General academic data-quality questions.
+    # Handle these before prediction intent so a question about whether
+    # incomplete data is sufficient does not get mistaken for a request
+    # to run an individual prediction.
+
+    data_quality_keywords = (
+        "incomplete",
+        "incomplete records",
+        "missing data",
+        "missing records",
+        "data quality",
+        "data sufficiency",
+        "data sufficient",
+        "sufficient data",
+        "reliable prediction",
+        "reliably predict",
+        "records are missing",
+        "records are incomplete",
+        "what information is missing",
+        "which information is missing",
+        "data availability",
+    )
+
+    is_data_quality_question = any(
+        keyword in normalized_question
+        for keyword in data_quality_keywords
+    )
+
+    if is_data_quality_question and student_id is None:
+        return {
+            "intent": "academic_data_quality",
+            "data_used": [],
+            "records_found": 0,
+            "academic_data": {
+                "scope": "general_guidance",
+                "student_identified": False,
+                "student_specific_records_retrieved": False,
+                "available_student_fields": [],
+                "missing_student_fields": [
+                    "student identity",
+                    "examination marks",
+                    "subject-wise attendance records",
+                    "historical examination records",
+                    "target examination",
+                ],
+                "prediction_generated": False,
+                "prediction_reliability": "not_assessable",
+                "limitations": [
+                    "No specific student was identified in the question.",
+                    "No student-specific academic records were retrieved.",
+                    "The actual available and missing fields cannot be verified without a student record.",
+                ],
+            },
+            "message": (
+                "This is a general academic data-quality question. "
+                "No specific student was identified, and no individual "
+                "examination or attendance records were retrieved. "
+                "Therefore, no student-specific marks, attendance percentages, "
+                "or risk indicators are available for assessment. "
+                "To evaluate a student's academic performance, examination "
+                "marks, maximum marks, examination dates, and historical "
+                "results are needed. To evaluate attendance, attendance "
+                "sessions and present or absent records are needed. "
+                "Without sufficient historical marks and attendance features, "
+                "an individual underperformance prediction cannot be generated "
+                "reliably. No prediction was generated."
+            ),
+                    }
+
+
+    explicit_prediction_keywords = (
         "predict",
         "prediction",
         "forecast",
-        "at risk",
-        "risk prediction",
-        "underperformance prediction",
-        "underperforming",
         "will underperform",
+        "generate a prediction",
+        "run a prediction",
+        "model score",
+        "random forest",
+        "explain the prediction",
+        "explain this prediction",
+        "explain the model prediction",
+        "underperformance prediction",
+        "risk prediction",
+        "risk score",
+        "risk category",
+        "flagged for academic support",
+        "why was the student flagged",
+        "why was this student flagged",
+        "why was he flagged",
+        "why was she flagged",
     )
 
-    is_prediction_question = any(
+    prediction_context_keywords = (
+        "risk",
+        "underperformance",
+        "underperforming",
+        "flagged",
+        "academic support",
+        "risk indicators",
+        "positive indicators",
+        "contributing factors",
+        "teacher intervention",
+        "teacher interventions",
+        "intervention",
+        "recommendation",
+        "recommendations",
+    )
+
+    has_prediction_entities = (
+        student_id is not None
+        and subject_id is not None
+        and target_examination_id is not None
+    )
+
+    has_prediction_context = any(
         keyword in normalized_question
-        for keyword in prediction_keywords
+        for keyword in prediction_context_keywords
+    )
+
+    is_explicit_prediction_question = any(
+        keyword in normalized_question
+        for keyword in explicit_prediction_keywords
+    )
+
+    is_prediction_question = (
+        is_explicit_prediction_question
+        or (has_prediction_entities and has_prediction_context)
     )
 
     if is_prediction_question:
 
-        # Required entities for a prediction.
-        if (
-            student_id is None
-            or subject_id is None
-            or target_examination_id is None
-        ):
+        if not has_prediction_entities:
             return {
                 "intent": "underperformance_prediction",
                 "data_used": [],
                 "records_found": 0,
                 "academic_data": {},
                 "message": (
-                    "To predict examination underperformance, "
-                    "please specify the student, subject and "
-                    "target examination."
+                    "To explain or generate an individual examination "
+                    "underperformance prediction, please specify the "
+                    "student, subject and target examination."
                 ),
             }
 
-        try:
-            # Build features using historical academic records.
-            features = build_prediction_features(
-                db=db,
-                institution_id=institution_id,
-                student_id=student_id,
-                subject_id=subject_id,
-                target_examination_id=target_examination_id,
-            )
-
-            # Generate Random Forest prediction.
-            prediction = predict_underperformance(features)
-
-        except ValueError as exc:
-            return {
-                "intent": "underperformance_prediction",
-                "data_used": [],
-                "records_found": 0,
-                "academic_data": {},
-                "message": str(exc),
-            }
-
-        # Retrieve display information using institution-scoped queries.
         student = db.scalar(
             select(Student).where(
                 Student.id == student_id,
@@ -156,9 +241,47 @@ def retrieve_academic_data(
                 "records_found": 0,
                 "academic_data": {},
                 "message": (
-                    "The requested student, subject or "
-                    "examination could not be found."
+                    "The requested student, subject or examination "
+                    "could not be found for this institution."
                 ),
+            }
+
+        # Validate the academic period.
+        if (
+            academic_period_id is not None
+            and examination.academic_period_id != academic_period_id
+        ):
+            return {
+                "intent": "underperformance_prediction",
+                "data_used": [],
+                "records_found": 0,
+                "academic_data": {},
+                "message": (
+                    "The target examination does not belong "
+                    "to the selected academic period."
+                ),
+            }
+
+        try:
+            # Build historical academic features.
+            features = build_prediction_features(
+                db=db,
+                institution_id=institution_id,
+                student_id=student_id,
+                subject_id=subject_id,
+                target_examination_id=target_examination_id,
+            )
+
+            # Use the existing trained Random Forest model.
+            prediction = predict_underperformance(features)
+
+        except ValueError as exc:
+            return {
+                "intent": "underperformance_prediction",
+                "data_used": [],
+                "records_found": 0,
+                "academic_data": {},
+                "message": str(exc),
             }
 
         prediction_data = {
@@ -179,6 +302,7 @@ def retrieve_academic_data(
                 "name": examination.name,
                 "exam_date": examination.exam_date,
             },
+            "academic_period_id": examination.academic_period_id,
             "prediction": prediction,
             "features_used": features,
         }
@@ -194,12 +318,13 @@ def retrieve_academic_data(
             "records_found": 1,
             "academic_data": make_json_safe(prediction_data),
             "message": (
-                "Next examination underperformance prediction "
-                "generated successfully."
+                "Random Forest examination underperformance "
+                "prediction generated successfully."
             ),
         }
 
-    # 2. Combined low marks and attendance
+    # 3. Combined low marks and attendance.
+
     marks_keywords = (
         "low marks",
         "poor marks",
@@ -269,7 +394,8 @@ def retrieve_academic_data(
             ),
         }
 
-    # 3. Student-specific academic performance
+    # 4. Student-specific academic performance.
+
     student_performance_keywords = (
         "academic performance",
         "student performance",
@@ -289,6 +415,7 @@ def retrieve_academic_data(
             for keyword in student_performance_keywords
         )
     ):
+
         student_data = get_student_performance(
             db=db,
             institution_id=institution_id,
@@ -299,7 +426,9 @@ def retrieve_academic_data(
         if student_data is None:
             return {
                 "intent": "student_performance",
-                "data_used": ["student examination performance analytics"],
+                "data_used": [
+                    "student examination performance analytics"
+                ],
                 "records_found": 0,
                 "academic_data": [],
                 "message": (
@@ -322,8 +451,8 @@ def retrieve_academic_data(
             ),
         }
 
-    # 4. Declining performance
-    
+    # 5. Declining performance.
+
     decline_keywords = (
         "declining performance",
         "declining academic performance",
@@ -344,7 +473,6 @@ def retrieve_academic_data(
         "decline across examinations",
         "decline across consecutive examinations",
     )
-
 
     if any(
         keyword in normalized_question
@@ -385,7 +513,8 @@ def retrieve_academic_data(
             ),
         }
 
-    # 5. Subject performance
+    # 6. Subject performance.
+
     subject_keywords = (
         "subject",
         "subjects",
@@ -397,7 +526,10 @@ def retrieve_academic_data(
         "subject marks",
     )
 
-    if any(keyword in normalized_question for keyword in subject_keywords):
+    if any(
+        keyword in normalized_question
+        for keyword in subject_keywords
+    ):
 
         records = get_subject_performance(
             db=db,
@@ -444,7 +576,8 @@ def retrieve_academic_data(
             ),
         }
 
-    # 6. Low attendance
+    # 7. Low attendance.
+
     attendance_only_keywords = (
         "attendance",
         "absent",
@@ -488,7 +621,8 @@ def retrieve_academic_data(
             ),
         }
 
-    # 7. Unsupported question
+    # 8. Unsupported question.
+
     return {
         "intent": "unsupported",
         "data_used": [],
@@ -496,7 +630,8 @@ def retrieve_academic_data(
         "academic_data": [],
         "message": (
             "This question is not supported yet. "
-            "Currently supported topics are combined low marks "
-            "and attendance, subject performance, and low attendance."
+            "Currently supported topics are academic performance, "
+            "combined low marks and attendance, subject performance, "
+            "declining performance, ML predictions, attendance and academic data quality."
         ),
     }

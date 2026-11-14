@@ -10,10 +10,13 @@ import Login from "./pages/Login/Login";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Analytics from "./pages/Analytics/Analytics";
 import Predictions from "./pages/Predictions/Predictions";
+import Attendance from "./pages/Attendance/Attendance";
+import AcademicAssistant from "./pages/Assistant/AcademicAssistant";
+import Imports from "./pages/Imports/Imports";
+import Reports from "./pages/Reports/Reports";
 
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import PublicRoute from "./components/common/PublicRoute";
-import PlaceholderPage from "./components/common/PlaceholderPage";
 import AppLayout from "./components/layout/AppLayout";
 
 function App() {
@@ -25,7 +28,7 @@ function App() {
           <Route path="/login" element={<Login />} />
         </Route>
 
-        {/* Protected routes with shared application layout */}
+        {/* Protected application routes */}
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route
@@ -40,15 +43,9 @@ function App() {
 
             <Route
               path="/attendance"
-              element={
-                <PlaceholderPage
-                  title="Attendance Management"
-                  description="Monitor student attendance and identify attendance patterns."
-                />
-              }
+              element={<Attendance />}
             />
 
-            {/* ML Predictions */}
             <Route
               path="/predictions"
               element={<Predictions />}
@@ -56,32 +53,17 @@ function App() {
 
             <Route
               path="/assistant"
-              element={
-                <PlaceholderPage
-                  title="AI Assistant"
-                  description="Ask questions about your school's academic data."
-                />
-              }
+              element={<AcademicAssistant />}
             />
 
             <Route
               path="/imports"
-              element={
-                <PlaceholderPage
-                  title="Data Imports"
-                  description="Import and manage school academic datasets."
-                />
-              }
+              element={<Imports />}
             />
 
             <Route
               path="/reports"
-              element={
-                <PlaceholderPage
-                  title="Reports"
-                  description="View and export academic performance reports."
-                />
-              }
+              element={<Reports />}
             />
           </Route>
         </Route>

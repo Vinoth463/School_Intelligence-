@@ -61,6 +61,8 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+  // Load dashboard data when the component mounts.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadDashboard();
   }, [loadDashboard]);
 

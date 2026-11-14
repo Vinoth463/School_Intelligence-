@@ -132,9 +132,12 @@ export default function Analytics() {
     }
   }, [periodId, examinationId, classId]);
 
-  useEffect(() => {
-    void fetchAnalytics();
-  }, [fetchAnalytics]);
+useEffect(() => {
+  // Fetch remote analytics whenever the selected filters change.
+  // State updates occur after the asynchronous API request.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  void fetchAnalytics();
+}, [fetchAnalytics]);
 
   const handlePeriodChange = (value: string) => {
     setPeriodId(value);

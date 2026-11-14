@@ -76,8 +76,6 @@ export default function Predictions() {
   // Load eligible examinations when student or subject changes.
   useEffect(() => {
     if (!studentId || !subjectId) {
-      setExaminations([]);
-      setExaminationId("");
       return;
     }
 
@@ -156,17 +154,25 @@ export default function Predictions() {
       });
 
       setPrediction(result);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Prediction failed:", err);
 
-      const detail = err?.response?.data?.detail;
+      const apiError = err as {
+        response?: {
+          data?: {
+            detail?: unknown;
+          };
+        };
+      };
+
+      const detail = apiError.response?.data?.detail;
 
       setError(
         typeof detail === "string"
           ? detail
           : "Unable to generate prediction. Please try again."
       );
-    } finally {
+} finally {
       setPredicting(false);
     }
   };
